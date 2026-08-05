@@ -1,0 +1,28 @@
+{
+  "title": "NSCLC radiosensitivity radiogenomics analysis",
+  "description": "Analysis code for constructing a cell line-anchored radiosensitivity-associated molecular score, evaluating pathway-level molecular replication, developing a computed tomography radiomic surrogate, and assessing survival associations and radiomic domain shift in non-small cell lung cancer.",
+  "upload_type": "software",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Guo, Zhijun",
+      "orcid": "0009-0008-7344-6317",
+      "affiliation": "Shandong First Medical University & Shandong Academy of Medical Sciences, Jinan, Shandong, China"
+    }
+  ],
+  "keywords": [
+    "NSCLC",
+    "radiogenomics",
+    "radiomics",
+    "radiosensitivity",
+    "elastic net"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/ZhijunGuo129/nsclc-radiosensitivity-radiogenomics-analysis",
+      "relation": "isSupplementTo",
+      "scheme": "url",
+      "resource_type": "software"
+    }
+  ]
+}

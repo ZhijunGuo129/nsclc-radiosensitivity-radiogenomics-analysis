@@ -1,0 +1,6 @@
+numpy
+openpyxl
+pandas
+pydicom
+pyradiomics
+SimpleITK

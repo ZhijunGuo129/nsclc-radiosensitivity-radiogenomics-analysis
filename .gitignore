@@ -1,0 +1,41 @@
+# Local configuration
+.env
+.Renviron
+
+# Raw and derived data
+data/raw/
+data/derived/
+outputs/
+results/
+figures/
+*.csv
+*.xlsx
+*.xls
+*.png
+*.pdf
+*.rds
+*.RData
+*.RDataTmp*
+.Rhistory
+*.dcm
+*.nrrd
+*.nii
+*.nii.gz
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# R
+.Rproj.user/
+renv/library/
+renv/staging/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Locally captured software environments
+environment/captured/

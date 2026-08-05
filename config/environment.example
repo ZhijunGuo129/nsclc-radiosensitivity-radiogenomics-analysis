@@ -1,0 +1,5 @@
+# Absolute path to the analysis workspace containing the manuscript data folders.
+RADIOGENOMICS_PROJECT_DIR=/absolute/path/to/radiogenomics-analysis-workspace
+
+# Absolute path to the Lung1 imaging and clinical data workspace.
+LUNG1_DATA_DIR=/absolute/path/to/NSCLC_Radiomics_Lung1
