@@ -1,0 +1,47 @@
+name: repository-checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  repository-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Show repository tree
+        run: |
+          find . -maxdepth 3 -type f | sort | head -300
+
+      - name: Compile Python files
+        run: |
+          python -m compileall python tools
+
+      - name: Run repository validation
+        run: |
+          python tools/validate_repository.py
+
+      - name: Check core repository files
+        run: |
+          test -f README.md
+          test -f CITATION.cff
+          test -f .zenodo.json
+          test -f CODE_AVAILABILITY.md
+          test -f LICENSE
+          test -d R
+          test -d python
+          test -d docs
+          test -d data
+          test -d environment
+          test -d tools
