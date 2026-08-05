@@ -15,24 +15,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Show repository structure
+        run: |
+          echo "Repository root:"
+          pwd
+          echo "Top-level files and folders:"
+          find . -maxdepth 2 -type f | sort | head -200
+          find . -maxdepth 2 -type d | sort | head -100
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Show repository tree
-        run: |
-          find . -maxdepth 3 -type f | sort | head -300
-
-      - name: Compile Python files
-        run: |
-          python -m compileall python tools
-
-      - name: Run repository validation
-        run: |
-          python tools/validate_repository.py
-
-      - name: Check core repository files
+      - name: Check required repository files
         run: |
           test -f README.md
           test -f CITATION.cff
@@ -45,3 +41,11 @@ jobs:
           test -d data
           test -d environment
           test -d tools
+
+      - name: Run repository validation
+        run: |
+          python tools/validate_repository.py
+
+      - name: Compile Python files
+        run: |
+          python -m compileall python tools
