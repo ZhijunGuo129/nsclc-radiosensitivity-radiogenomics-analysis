@@ -2,23 +2,20 @@
 #
 # Audit Lung3 expression data and sample annotations.
 #
-# This script uses environment variables and project-relative paths.
-# It does not require machine-specific absolute paths.
+# The script uses environment variables and project-relative paths.
+# It does not contain machine-specific absolute paths.
 
 options(stringsAsFactors = FALSE)
 options(timeout = 3600)
 
-############################################################
-# 1. Project paths
-############################################################
-
 required_env_path <- function(name) {
   value <- Sys.getenv(name, unset = "")
+
   if (!nzchar(value)) {
     stop(
       "Environment variable ",
       name,
-      " is not set. Please set it to the project root before running this script."
+      " is not set. Set it to the project root before running this script."
     )
   }
 
@@ -26,10 +23,6 @@ required_env_path <- function(name) {
 }
 
 project_dir <- required_env_path("RADIOGENOMICS_PROJECT_DIR")
-
-############################################################
-# 2. Packages
-############################################################
 
 required_packages <- c("openxlsx", "readxl")
 
@@ -49,10 +42,6 @@ if (length(missing_packages) > 0L) {
 }
 
 invisible(lapply(required_packages, library, character.only = TRUE))
-
-############################################################
-# 3. Input and output paths
-############################################################
 
 lung3_dir <- Sys.getenv("LUNG3_DATA_DIR", unset = "")
 
@@ -99,10 +88,6 @@ crs_symbol_model_rds <- file.path(
   "crs_gene_symbol_coefficients.rds"
 )
 
-############################################################
-# 4. Helper functions
-############################################################
-
 clean_id <- function(x) {
   toupper(trimws(as.character(x)))
 }
@@ -112,15 +97,15 @@ extract_lung_number <- function(x) {
   x <- gsub("LUNG3", "LUNG", x)
   x <- gsub("[^A-Z0-9]+", "_", x)
 
-  num <- rep(NA_character_, length(x))
+  out <- rep(NA_character_, length(x))
 
-  hit1 <- grepl("LUNG[_]?0*[0-9]+", x)
-  num[hit1] <- sub(".*LUNG[_]?0*([0-9]+).*", "\\1", x[hit1])
+  hit_lung <- grepl("LUNG[_]?0*[0-9]+", x)
+  out[hit_lung] <- sub(".*LUNG[_]?0*([0-9]+).*", "\\1", x[hit_lung])
 
-  hit2 <- is.na(num) & grepl("[0-9]+", x)
-  num[hit2] <- sub(".*?([0-9]+).*", "\\1", x[hit2])
+  hit_number <- is.na(out) & grepl("[0-9]+", x)
+  out[hit_number] <- sub(".*?([0-9]+).*", "\\1", x[hit_number])
 
-  num
+  out
 }
 
 strip_quotes <- function(x) {
@@ -167,9 +152,9 @@ guess_id_column <- function(df) {
 
   scores <- vapply(
     colnames(df),
-    function(cc) {
-      xx <- as.character(df[[cc]])
-      sum(grepl("lung|LUNG|Lung", xx), na.rm = TRUE)
+    function(column_name) {
+      values <- as.character(df[[column_name]])
+      sum(grepl("lung|LUNG|Lung", values), na.rm = TRUE)
     },
     numeric(1)
   )
@@ -216,22 +201,18 @@ safe_round <- function(x, digits = 4) {
   ifelse(is.finite(x), round(x, digits), NA_real_)
 }
 
-############################################################
-# 5. Download GEO matrix if needed
-############################################################
-
 cat("\n===== Lung3 data audit =====\n")
 cat("Project directory:\n")
 cat(project_dir, "\n")
-cat("Lung3 raw data folder:\n")
+cat("Lung3 data directory:\n")
 cat(lung3_dir, "\n")
-cat("Output folder:\n")
+cat("Output directory:\n")
 cat(out_dir, "\n")
 
 if (!file.exists(geo_matrix_file) || file.info(geo_matrix_file)$size < 1000000) {
-  cat("\nGSE58661 series matrix not found or too small. Trying download from GEO FTP...\n")
+  cat("\nGSE58661 series matrix was not found or was too small. Downloading from GEO FTP...\n")
 
-  ok <- tryCatch(
+  download_ok <- tryCatch(
     {
       download.file(
         url = geo_matrix_url,
@@ -248,17 +229,13 @@ if (!file.exists(geo_matrix_file) || file.info(geo_matrix_file)$size < 1000000) 
     }
   )
 
-  if (!ok) {
-    cat("\nPlease manually download GSE58661_series_matrix.txt.gz from GEO and place it here:\n")
+  if (!download_ok) {
+    cat("\nManual download is required. Place the file here:\n")
     cat(geo_matrix_file, "\n")
   }
 } else {
-  cat("\nGSE58661 series matrix already exists. Skip download.\n")
+  cat("\nGSE58661 series matrix already exists. Skipping download.\n")
 }
-
-############################################################
-# 6. Parse GEO matrix
-############################################################
 
 geo_audit <- data.frame(
   item = character(),
@@ -285,7 +262,7 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
   platform_id <- get_matrix_meta_line(lines, "!Sample_platform_id")
 
   if (is.null(sample_geo)) {
-    stop("Could not parse !Sample_geo_accession from the GSE58661 series matrix.")
+    stop("Could not parse sample GEO accessions from the series matrix.")
   }
 
   n_samples <- length(sample_geo)
@@ -311,11 +288,8 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
     stringsAsFactors = FALSE
   )
 
-  cat("\nGEO sample meta dim:\n")
+  cat("\nGEO sample metadata dimension:\n")
   print(dim(geo_sample_meta))
-
-  cat("\nFirst 10 GEO samples:\n")
-  print(head(geo_sample_meta, 10))
 
   begin_idx <- grep("^!series_matrix_table_begin", lines)
   end_idx <- grep("^!series_matrix_table_end", lines)
@@ -329,13 +303,11 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
       check.names = FALSE
     )
 
-    cat("\nExpression table dim, probes/genes x samples plus ID:\n")
+    cat("\nExpression table dimension:\n")
     print(dim(expr_table))
 
-    cat("\nExpression table first 5 columns:\n")
-    print(colnames(expr_table)[1:min(5, ncol(expr_table))])
-
     expr_ids <- as.character(expr_table[[1]])
+    expr_id_upper <- toupper(expr_ids)
 
     common_gene_symbols <- c(
       "TP53",
@@ -354,8 +326,6 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
       "STAT1",
       "IRF1"
     )
-
-    expr_id_upper <- toupper(expr_ids)
 
     symbol_like_fraction <- mean(grepl("^[A-Z0-9.-]+$", expr_id_upper))
     common_symbol_hits <- sum(common_gene_symbols %in% expr_id_upper)
@@ -410,7 +380,7 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
 
     geo_ready <- TRUE
   } else {
-    cat("\nCannot find series_matrix_table_begin/end. Expression table not parsed.\n")
+    cat("\nSeries matrix table boundaries were not detected. Expression table was not parsed.\n")
   }
 
   geo_audit <- rbind(
@@ -423,11 +393,7 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
     ),
     data.frame(
       item = "GEO_platform_ids",
-      value = ifelse(
-        is.null(geo_sample_meta),
-        NA,
-        safe_paste_unique(geo_sample_meta$platform_id)
-      )
+      value = ifelse(is.null(geo_sample_meta), NA, safe_paste_unique(geo_sample_meta$platform_id))
     ),
     data.frame(item = "GEO_expression_table_parsed", value = !is.null(expr_table))
   )
@@ -441,10 +407,6 @@ if (file.exists(geo_matrix_file) && file.info(geo_matrix_file)$size > 1000000) {
     data.frame(item = "GEO_expression_table_parsed", value = FALSE)
   )
 }
-
-############################################################
-# 7. Read Lung3 clinical file if available
-############################################################
 
 cat("\n===== Checking Lung3 clinical file =====\n")
 
@@ -467,16 +429,10 @@ if (!is.na(clinical_file)) {
 
   clinical_df <- read_clinical_auto(clinical_file)
 
-  cat("\nClinical table dim:\n")
+  cat("\nClinical table dimension:\n")
   print(dim(clinical_df))
 
-  cat("\nClinical columns:\n")
-  print(colnames(clinical_df))
-
   clinical_id_col <- guess_id_column(clinical_df)
-
-  cat("\nDetected clinical ID column:\n")
-  print(clinical_id_col)
 
   clinical_df$clinical_patient_id_clean <- clean_id(clinical_df[[clinical_id_col]])
   clinical_df$lung_number_from_clinical <- extract_lung_number(
@@ -493,28 +449,7 @@ if (!is.na(clinical_file)) {
 
   radiomics_like_cols <- colnames(clinical_df)[
     grepl(
-      paste(
-        c(
-          "radiom",
-          "feature",
-          "texture",
-          "shape",
-          "firstorder",
-          "glcm",
-          "glrlm",
-          "glszm",
-          "gldm",
-          "ngtdm",
-          "volume",
-          "diameter",
-          "area",
-          "entropy",
-          "uniformity",
-          "compact",
-          "spheric"
-        ),
-        collapse = "|"
-      ),
+      "radiom|feature|texture|shape|firstorder|glcm|glrlm|glszm|gldm|ngtdm|volume|diameter|area|entropy|uniformity|compact|spheric",
       colnames(clinical_df),
       ignore.case = TRUE
     )
@@ -551,8 +486,8 @@ if (!is.na(clinical_file)) {
       candidate_column = radiomics_like_cols,
       example_values = vapply(
         radiomics_like_cols,
-        function(cc) {
-          paste(head(as.character(clinical_df[[cc]]), 5), collapse = "; ")
+        function(column_name) {
+          paste(head(as.character(clinical_df[[column_name]]), 5), collapse = "; ")
         },
         character(1)
       ),
@@ -590,15 +525,10 @@ if (!is.na(clinical_file)) {
       ),
       stringsAsFactors = FALSE
     )
-
-    cat("\n===== GEO-clinical ID matching audit =====\n")
-    print(id_match_audit)
   }
 } else {
   cat("\nClinical file not found.\n")
-  cat("Please manually place Lung3 clinical metadata in:\n")
-  cat(lung3_dir, "\n")
-  cat("Accepted filenames include Lung3.metadata.xls, Lung3.metadata.xlsx, Lung3.csv.\n")
+  cat("Place Lung3 clinical metadata in the Lung3 data directory if clinical audit is needed.\n")
 
   clinical_audit <- data.frame(
     item = c(
@@ -627,58 +557,27 @@ if (!is.na(clinical_file)) {
   )
 }
 
-############################################################
-# 8. Feasibility conclusion
-############################################################
-
 feasibility <- data.frame(
-  question = character(),
-  answer = character(),
-  interpretation = character(),
-  stringsAsFactors = FALSE
-)
-
-feasibility <- rbind(
-  feasibility,
-  data.frame(
-    question = "Can Lung3 support external molecular validation?",
-    answer = ifelse(geo_ready, "Potentially yes", "Not yet"),
-    interpretation = ifelse(
+  question = c(
+    "Can Lung3 support external molecular validation?",
+    "Can Lung3 support direct frozen PyRadiomics RRS validation?",
+    "Can Lung3 support clinical OS validation?"
+  ),
+  answer = c(
+    ifelse(geo_ready, "Potentially yes", "Not yet"),
+    "Uncertain / high risk",
+    "Not primary for this project"
+  ),
+  interpretation = c(
+    ifelse(
       geo_ready,
-      paste(
-        "The GSE58661 expression matrix was parsed.",
-        "The next step is probe-to-gene-symbol mapping if expression IDs are not already gene symbols."
-      ),
+      "The GSE58661 expression matrix was parsed. Probe-to-gene-symbol mapping may be required before CRS scoring.",
       "The GSE58661 matrix is missing or could not be parsed."
     ),
-    stringsAsFactors = FALSE
-  )
-)
-
-feasibility <- rbind(
-  feasibility,
-  data.frame(
-    question = "Can Lung3 support direct frozen PyRadiomics RRS validation?",
-    answer = "Uncertain / high risk",
-    interpretation = paste(
-      "The TCIA public table lists CT images but not clearly SEG or RTSTRUCT.",
-      "Direct PyRadiomics replication requires tumor ROI or compatible precomputed radiomic features."
-    ),
-    stringsAsFactors = FALSE
-  )
-)
-
-feasibility <- rbind(
-  feasibility,
-  data.frame(
-    question = "Can Lung3 support clinical OS validation?",
-    answer = "Not primary for this project",
-    interpretation = paste(
-      "Lung3 is a surgery-treated cohort, not a radiotherapy cohort.",
-      "Survival analysis would be exploratory and not radiotherapy-specific."
-    ),
-    stringsAsFactors = FALSE
-  )
+    "Direct PyRadiomics replication requires tumor ROI or compatible precomputed radiomic features.",
+    "Lung3 is a surgery-treated cohort rather than a radiotherapy cohort."
+  ),
+  stringsAsFactors = FALSE
 )
 
 if (!is.null(clinical_df)) {
@@ -687,16 +586,13 @@ if (!is.null(clinical_df)) {
     data.frame(
       question = "Does the clinical file contain radiomics-like fields?",
       answer = ifelse(
-        nrow(clinical_radiomics_candidates) > 0,
+        nrow(clinical_radiomics_candidates) > 0L,
         "Possibly",
         "No obvious fields detected"
       ),
       interpretation = ifelse(
-        nrow(clinical_radiomics_candidates) > 0,
-        paste(
-          "Radiomics or size-like columns were detected in the clinical file.",
-          "Manual inspection is required to determine whether they are compatible with PyRadiomics features."
-        ),
+        nrow(clinical_radiomics_candidates) > 0L,
+        "Radiomics or size-like columns were detected and require manual compatibility inspection.",
         "No obvious radiomics feature columns were detected in the clinical file."
       ),
       stringsAsFactors = FALSE
@@ -706,10 +602,6 @@ if (!is.null(clinical_df)) {
 
 cat("\n===== Lung3 data audit feasibility conclusion =====\n")
 print(feasibility)
-
-############################################################
-# 9. Save outputs
-############################################################
 
 if (!is.null(geo_sample_meta)) {
   write.csv(
@@ -813,8 +705,8 @@ if (nrow(id_match_audit) > 0L) {
   writeData(wb, "ID_matching", id_match_audit)
 }
 
-for (sheet in names(wb)) {
-  setColWidths(wb, sheet, cols = 1:30, widths = "auto")
+for (sheet_name in names(wb)) {
+  setColWidths(wb, sheet_name, cols = 1:30, widths = "auto")
 }
 
 saveWorkbook(
@@ -823,13 +715,6 @@ saveWorkbook(
   overwrite = TRUE
 )
 
-############################################################
-# 10. Done
-############################################################
-
 cat("\n===== DONE: Lung3 data audit finished =====\n")
 cat("Main output:\n")
 cat(workbook_file, "\n")
-
-cat("\nKey outputs saved in:\n")
-cat(out_dir, "\n")
